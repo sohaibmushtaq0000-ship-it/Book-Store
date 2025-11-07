@@ -1,9 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const {
-  uploadCover,
-  uploadBookFile,
-} = require("../middleware/upload");
+const { uploadFiles } = require("../middleware/upload"); // Updated import
+
 const {
   uploadBook,
   approveBook,
@@ -17,13 +15,8 @@ router.use((req, res, next) => {
   next();
 });
 
-// ✅ Upload Book (Admin / Superadmin)
-router.post(
-  "/upload",
-  uploadCover.array("coverImages", 5),
-  uploadBookFile.array("bookFile", 1),
-  uploadBook
-);
+// ✅ Upload Book (Admin / Superadmin) - UPDATED
+router.post("/upload", uploadFiles, uploadBook);
 
 // ✅ Get only approved books
 router.get("/approved", getApprovedBooks);
