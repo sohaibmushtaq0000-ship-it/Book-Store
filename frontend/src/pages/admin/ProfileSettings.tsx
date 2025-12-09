@@ -1,41 +1,97 @@
-import { useState } from "react";
+// components/ProfileSettings.tsx
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth"; // Import the hook we just created
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Upload, Camera, CreditCard, User, Mail, Phone, MapPin, Building2, Wallet, DollarSign } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+// Define the user profile type
+interface UserProfile {
+  id: string;
+  email: string;
+  role: string;
+  profileImage?: string;
+  fullName?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  bankName?: string;
+  accountNumber?: string;
+  easyPaisaNumber?: string;
+  jazzCashNumber?: string;
+  idCardFront?: string;
+  idCardBack?: string;
+  isVerified?: boolean;
+}
+
 const ProfileSettings = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const [profileImage, setProfileImage] = useState(user?.profileImage || "");
-  const [idCardFront, setIdCardFront] = useState("");
-  const [idCardBack, setIdCardBack] = useState("");
+  const { 
+    user, 
+    updateUser, 
+    isUpdatingUser 
+  } = useAuth();
   
-  // Personal Info
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [country, setCountry] = useState("");
-  
-  // Payment Info
-  const [bankName, setBankName] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [easyPaisaNumber, setEasyPaisaNumber] = useState("");
-  const [jazzCashNumber, setJazzCashNumber] = useState("");
+  // Initialize form state with user data
+  const [formData, setFormData] = useState<UserProfile>({
+    id: '',
+    email: '',
+    role: 'user',
+    profileImage: '',
+    fullName: '',
+    phone: '',
+    address: '',
+    city: '',
+    country: '',
+    bankName: '',
+    accountNumber: '',
+    easyPaisaNumber: '',
+    jazzCashNumber: '',
+    idCardFront: '',
+    idCardBack: '',
+    isVerified: false
+  });
 
+  // Update form data when user data loads
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        id: user.id || '',
+        email: user.email || '',
+        role: user.role || 'user',
+        profileImage: user.profileImage || '',
+        fullName: user.fullName || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        city: user.city || '',
+        country: user.country || '',
+        bankName: user.bankName || '',
+        accountNumber: user.accountNumber || '',
+        easyPaisaNumber: user.easyPaisaNumber || '',
+        jazzCashNumber: user.jazzCashNumber || '',
+        idCardFront: user.idCardFront || '',
+        idCardBack: user.idCardBack || '',
+        isVerified: user.isVerified || false
+      }));
+    }
+  }, [user]);
+
+  // Handle file uploads
   const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProfileImage(reader.result as string);
+        const imageUrl = reader.result as string;
+        setFormData(prev => ({ ...prev, profileImage: imageUrl }));
         toast({ title: "Success", description: "Profile image uploaded!" });
       };
       reader.readAsDataURL(file);
@@ -47,7 +103,8 @@ const ProfileSettings = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setIdCardFront(reader.result as string);
+        const imageUrl = reader.result as string;
+        setFormData(prev => ({ ...prev, idCardFront: imageUrl }));
         toast({ title: "Success", description: "ID card front uploaded!" });
       };
       reader.readAsDataURL(file);
@@ -59,35 +116,50 @@ const ProfileSettings = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setIdCardBack(reader.result as string);
+        const imageUrl = reader.result as string;
+        setFormData(prev => ({ ...prev, idCardBack: imageUrl }));
         toast({ title: "Success", description: "ID card back uploaded!" });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSave = () => {
-    const savedUser = JSON.parse(localStorage.getItem("mockUser") || "{}");
-    savedUser.profileImage = profileImage;
-    savedUser.idCardFront = idCardFront;
-    savedUser.idCardBack = idCardBack;
-    savedUser.fullName = fullName;
-    savedUser.phone = phone;
-    savedUser.address = address;
-    savedUser.city = city;
-    savedUser.country = country;
-    savedUser.bankName = bankName;
-    savedUser.accountNumber = accountNumber;
-    savedUser.easyPaisaNumber = easyPaisaNumber;
-    savedUser.jazzCashNumber = jazzCashNumber;
-    localStorage.setItem("mockUser", JSON.stringify(savedUser));
-    
-    toast({ 
-      title: "Success", 
-      description: "Profile updated successfully!",
-      duration: 3000 
-    });
+  // Handle input changes
+  const handleInputChange = (field: keyof UserProfile, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  // Save all changes
+  const handleSave = async () => {
+    try {
+      await updateUser(formData);
+    } catch (error) {
+      // Error handling is done in the mutation
+      console.error('Failed to update profile:', error);
+    }
+  };
+
+  // If user data is still loading, show loading state
+  if (!user) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
+              Profile Settings
+            </h1>
+            <p className="text-muted-foreground mt-2">Loading your profile...</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading your profile information...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -101,9 +173,10 @@ const ProfileSettings = () => {
         <Button 
           onClick={handleSave} 
           size="lg"
+          disabled={isUpdatingUser}
           className="px-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
         >
-          Save All Changes
+          {isUpdatingUser ? "Saving..." : "Save All Changes"}
         </Button>
       </div>
 
@@ -129,9 +202,9 @@ const ProfileSettings = () => {
               <CardContent className="space-y-4 pt-6">
                 <div className="flex flex-col items-center gap-4">
                   <Avatar className="h-40 w-40 ring-4 ring-primary/20 shadow-xl">
-                    <AvatarImage src={profileImage} alt="Profile" />
+                    <AvatarImage src={formData.profileImage} alt="Profile" />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground text-4xl">
-                      {user?.email.charAt(0).toUpperCase()}
+                      {user?.email?.charAt(0)?.toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   
@@ -175,8 +248,8 @@ const ProfileSettings = () => {
                     </Label>
                     <Input 
                       id="fullName"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      value={formData.fullName}
+                      onChange={(e) => handleInputChange('fullName', e.target.value)}
                       placeholder="John Doe"
                       className="h-11"
                     />
@@ -188,7 +261,7 @@ const ProfileSettings = () => {
                     </Label>
                     <Input 
                       id="email"
-                      value={user?.email} 
+                      value={formData.email} 
                       disabled 
                       className="bg-secondary/50 h-11"
                     />
@@ -203,8 +276,8 @@ const ProfileSettings = () => {
                     </Label>
                     <Input 
                       id="phone"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
                       placeholder="+92 300 1234567"
                       className="h-11"
                     />
@@ -216,7 +289,7 @@ const ProfileSettings = () => {
                     </Label>
                     <Input 
                       id="role"
-                      value={user?.role === "superadmin" ? "Super Admin" : user?.role === "admin" ? "Admin" : "User"} 
+                      value={formData.role === "superadmin" ? "Super Admin" : formData.role === "admin" ? "Admin" : "User"} 
                       disabled 
                       className="bg-secondary/50 capitalize h-11"
                     />
@@ -237,8 +310,8 @@ const ProfileSettings = () => {
                     </Label>
                     <Input 
                       id="address"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
+                      value={formData.address}
+                      onChange={(e) => handleInputChange('address', e.target.value)}
                       placeholder="123 Main Street"
                       className="h-11"
                     />
@@ -251,8 +324,8 @@ const ProfileSettings = () => {
                       </Label>
                       <Input 
                         id="city"
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
+                        value={formData.city}
+                        onChange={(e) => handleInputChange('city', e.target.value)}
                         placeholder="Lahore"
                         className="h-11"
                       />
@@ -263,8 +336,8 @@ const ProfileSettings = () => {
                       </Label>
                       <Input 
                         id="country"
-                        value={country}
-                        onChange={(e) => setCountry(e.target.value)}
+                        value={formData.country}
+                        onChange={(e) => handleInputChange('country', e.target.value)}
                         placeholder="Pakistan"
                         className="h-11"
                       />
@@ -294,10 +367,10 @@ const ProfileSettings = () => {
                     <CreditCard className="h-5 w-5 text-primary" />
                     ID Card - Front Side
                   </h3>
-                  {idCardFront ? (
+                  {formData.idCardFront ? (
                     <div className="relative group">
                       <div className="aspect-video rounded-lg overflow-hidden border-2 border-primary/20 shadow-lg">
-                        <img src={idCardFront} alt="ID Card Front" className="w-full h-full object-cover" />
+                        <img src={formData.idCardFront} alt="ID Card Front" className="w-full h-full object-cover" />
                       </div>
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                         <Label htmlFor="id-card-front" className="cursor-pointer">
@@ -339,10 +412,10 @@ const ProfileSettings = () => {
                     <CreditCard className="h-5 w-5 text-primary" />
                     ID Card - Back Side
                   </h3>
-                  {idCardBack ? (
+                  {formData.idCardBack ? (
                     <div className="relative group">
                       <div className="aspect-video rounded-lg overflow-hidden border-2 border-primary/20 shadow-lg">
-                        <img src={idCardBack} alt="ID Card Back" className="w-full h-full object-cover" />
+                        <img src={formData.idCardBack} alt="ID Card Back" className="w-full h-full object-cover" />
                       </div>
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                         <Label htmlFor="id-card-back" className="cursor-pointer">
@@ -412,8 +485,8 @@ const ProfileSettings = () => {
                     </Label>
                     <Input 
                       id="bankName"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
+                      value={formData.bankName}
+                      onChange={(e) => handleInputChange('bankName', e.target.value)}
                       placeholder="e.g., HBL, MCB, UBL"
                       className="h-11"
                     />
@@ -425,8 +498,8 @@ const ProfileSettings = () => {
                     </Label>
                     <Input 
                       id="accountNumber"
-                      value={accountNumber}
-                      onChange={(e) => setAccountNumber(e.target.value)}
+                      value={formData.accountNumber}
+                      onChange={(e) => handleInputChange('accountNumber', e.target.value)}
                       placeholder="Enter your account number"
                       className="h-11"
                     />
@@ -449,8 +522,8 @@ const ProfileSettings = () => {
                     </Label>
                     <Input 
                       id="easyPaisa"
-                      value={easyPaisaNumber}
-                      onChange={(e) => setEasyPaisaNumber(e.target.value)}
+                      value={formData.easyPaisaNumber}
+                      onChange={(e) => handleInputChange('easyPaisaNumber', e.target.value)}
                       placeholder="03XX XXXXXXX"
                       className="h-11"
                     />
@@ -464,8 +537,8 @@ const ProfileSettings = () => {
                     </Label>
                     <Input 
                       id="jazzCash"
-                      value={jazzCashNumber}
-                      onChange={(e) => setJazzCashNumber(e.target.value)}
+                      value={formData.jazzCashNumber}
+                      onChange={(e) => handleInputChange('jazzCashNumber', e.target.value)}
                       placeholder="03XX XXXXXXX"
                       className="h-11"
                     />

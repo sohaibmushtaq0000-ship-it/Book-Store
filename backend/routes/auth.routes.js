@@ -18,7 +18,7 @@ router.post(
   authController.login
 );
 
-router.get(
+router.post(
   '/verify-email',
   authController.verifyEmail
 );

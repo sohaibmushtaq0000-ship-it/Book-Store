@@ -38,7 +38,7 @@ const generateOTP = () => {
 // REGISTER
 const register = async (req, res, next) => {
   try {
-    const { firstName, lastName, email, password, phone, verificationMethod = "email" } = req.body;
+    const { firstName, lastName, email, password, phone, verificationMethod = "email", role } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser)
@@ -53,6 +53,7 @@ const register = async (req, res, next) => {
       email,
       password,
       phone,
+      role
     });
 
     // Generate OTP

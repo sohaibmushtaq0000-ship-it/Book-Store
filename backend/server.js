@@ -1,98 +1,132 @@
+// ====================================================
+//              SERVER.JS – STABLE VERSION
+// ====================================================
+
+// Load environment variables
 require("dotenv").config();
+
+// ===== Global crash handlers (prevent silent Nodemon crash) =====
+process.on("uncaughtException", (err) => {
+  console.error("❌ UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ UNHANDLED REJECTION:", reason);
+});
+
+// Core imports
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
-const mongoSanitize = require("express-mongo-sanitize");
-const xss = require("xss-clean");
-const hpp = require("hpp");
 const compression = require("compression");
 const passport = require("passport");
 const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const path = require("path");
-const fs = require("fs");
-const IndexRouter = require('./routes/index.routes')
 
-// Load configurations
-const MONGO_URI = process.env.MONGO
-const { PORT, SESSION_SECRET, NODE_ENV, FRONTEND_URL } = process.env;
-// Database connection
+// Custom routes
+const IndexRouter = require("./routes/index.routes");
+// DB connection
 const connectDB = require("./loaders/connectionDB");
 
-// Middleware
+// Custom error handlers
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 
-const app = express();
+// ENV Values
+const PORT = process.env.PORT || 5000;
+const SESSION_SECRET = process.env.SESSION_SECRET || "fallbacksecret";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const MONGO_URI = process.env.MONGO;
 
-// Connect to database
-connectDB().catch((err) => {
-  console.error("❌ MongoDB connection failed:", err); // Use console instead
+// ===== Validate required env values =====
+if (!MONGO_URI) {
+  console.error("❌ ERROR: MONGO is missing in .env");
   process.exit(1);
-});
-
-// Security middleware
-app.use(helmet());
-
-// Enable CORS
-app.use(
-  cors({
-    origin: FRONTEND_URL || "http://localhost:3000",
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  })
-);
-
-// Body parsing middleware
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// Compression
-app.use(compression());
-
-// Logging - Simplified without logger
-if (NODE_ENV === "development") {
-  app.use(morgan("dev"));
-} else {
-  app.use(morgan("combined"));
 }
 
-// ✅ FIXED: Session configuration with MongoDB
+// Create express app
+const app = express();
+
+// ===== CONNECT DATABASE =====
+(async () => {
+  try {
+    await connectDB();
+    console.log("✅ Database connected successfully");
+  } catch (err) {
+    console.error("❌ MongoDB connection failed:", err);
+    process.exit(1);
+  }
+})();
+
+// ===== Security Middleware =====
+app.use(helmet());
+
+// ===== CORS =====
 app.use(
-  session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl: MONGO_URI, 
-      collectionName: "sessions",
-    }),
-    cookie: {
-      secure: NODE_ENV === "production", 
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, 
-    },
+  cors({
+    origin: FRONTEND_URL,
+    credentials: true,
   })
 );
 
-// Passport middleware
+// ===== Body Parsers =====
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
+
+// ===== Compression =====
+app.use(compression());
+
+// ===== Logging =====
+app.use(
+  morgan(process.env.NODE_ENV === "development" ? "dev" : "combined")
+);
+
+// ===== Session Setup (Crash-safe) =====
+try {
+  app.use(
+    session({
+      secret: SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      store: MongoStore.create({
+        mongoUrl: MONGO_URI,
+        collectionName: "sessions",
+      }),
+      cookie: {
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+      },
+    })
+  );
+} catch (err) {
+  console.error("❌ Session setup error:", err);
+}
+
+// ===== Passport =====
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Static files (uploads)
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// ===== Static Uploads =====
+app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Routes
-
-// Index Router
-app.use('/api',IndexRouter)
-
-// Start server
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running in ${NODE_ENV} mode on port ${PORT}`); // Use console
-  console.log(`📍 Health check: http://localhost:${PORT}/api/health`); // Use console
+// ===== Health Check =====
+app.get("/api/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
+// ===== Routes =====
+app.use("/api", IndexRouter);
+
+// ===== Error Handling (last middleware) =====
+app.use(notFound);
+app.use(errorHandler);
+
+// ===== Start Server =====
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
+// Export for testing
 module.exports = app;
