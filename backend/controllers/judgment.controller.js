@@ -376,14 +376,20 @@ const purchaseJudgment = async (req, res, next) => {
       return next(new AppError('You have already purchased this judgment', 400));
     }
 
+    // Only SafePay is supported
+    const paymentMethod = req.body.paymentMethod || 'safepay';
+    if (paymentMethod !== 'safepay') {
+      return next(new AppError('Only SafePay is accepted for payment', 400));
+    }
+
     // Create purchase record
     const purchase = await Purchase.create({
       user: req.user.id,
       judgment: judgment._id,
       type: 'judgment',
-      format: 'pdf', // PDF format is paid
+      format: 'pdf',
       amount: judgment.price,
-      paymentMethod: req.body.paymentMethod || 'bank',
+      paymentMethod: 'safepay',
       paymentStatus: 'pending',
       transactionId: `JUD_${Date.now()}_${req.user.id}`,
     });

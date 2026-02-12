@@ -497,7 +497,7 @@ if (seller) {
               <span class="loader"></span> Processing complete
             </div>
             
-            <a href="${process.env.FRONTEND_URL || ''}/dashboard/books" class="btn">Go to My Books</a>
+            <a href="${process.env.FRONTEND_URL || ''}/" class="btn">Go to My Books</a>
             <a href="${process.env.FRONTEND_URL || ''}/books/${payment.book?._id || ''}/download" class="btn" style="background: #28a745; margin-left: 10px;">Download Now</a>
           </div>
           
@@ -509,7 +509,7 @@ if (seller) {
               countdownElement.textContent = countdown;
               if (countdown <= 0) {
                 clearInterval(countdownInterval);
-                window.location.href = '${process.env.FRONTEND_URL || ''}/dashboard/books';
+                window.location.href = '${process.env.FRONTEND_URL || ''}/';
               }
             }, 1000);
             
@@ -759,7 +759,7 @@ const safepayVerifyReturn = async (req, res) => {
       return res.json({
         success: true,
         bookId,
-        redirectUrl: "/dashboard/books",
+        redirectUrl: "/",
         message: "Payment successful"
       });
     }

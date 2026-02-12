@@ -97,7 +97,7 @@ const BookDetail = () => {
     }
   };
 
-const handlePurchase = async (paymentMethod: 'safepay' | 'bank' | 'jazzcash' | 'easypaisa' = 'safepay') => {
+const handlePurchase = async () => {
   if (!isAuthenticated) {
     navigate('/auth');
     return;
@@ -112,23 +112,18 @@ const handlePurchase = async (paymentMethod: 'safepay' | 'bank' | 'jazzcash' | '
     setPurchasing(true);
     const response = await BookService.purchaseBook(book._id, {
       format: 'pdf',
-      paymentMethod: paymentMethod
+      paymentMethod: 'safepay'
     });
-    
     if (response.success) {
       const paymentUrl =
         (response as any).payment?.paymentUrl ??
+        (response as any).data?.paymentUrl ??
         (response as any).redirectUrl ??
         (response as any).paymentUrl;
-      if (paymentMethod === 'safepay' && paymentUrl) {
+      if (paymentUrl) {
         window.location.href = paymentUrl;
-      } else if (paymentMethod === 'safepay' && !paymentUrl) {
-        toast.error('Payment link not received. Please try again.');
-      } else if (paymentMethod === 'bank') {
-        toast.success('Purchase initiated! Complete bank transfer to get access.');
       } else {
-        toast.success('Purchase initiated successfully!');
-        setHasPurchased(true);
+        toast.error('Payment link not received. Please try again.');
       }
     } else {
       toast.error(response.message || 'Failed to purchase book');

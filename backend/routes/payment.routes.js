@@ -23,7 +23,7 @@ router.post("/safepay/webhook", safepayWebhook);
 // ================== 🔐 PROTECTED ROUTES (Require Auth) ==================
 router.use(protect); // All routes below require authentication
 
-// Create JazzCash payment (Customer only)
+// Create payment (SafePay only)
 router.post("/create", isCustomer, createPayment);
 
 // Verify payment status

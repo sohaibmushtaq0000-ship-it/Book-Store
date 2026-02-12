@@ -15,7 +15,7 @@ export interface ApiResponse<T = any> {
 }
 
 export const PaymentService = {
-  createPayment: async (bookId: string, paymentMethod: string = 'safepay'): Promise<ApiResponse<{
+  createPayment: async (bookId: string): Promise<ApiResponse<{
     paymentUrl: string;
     tracker: string;
     redirectUrl: string;
@@ -24,7 +24,7 @@ export const PaymentService = {
   }>> => {
     const response = await api.post<ApiResponse>(`/payments/create`, {
       bookId,
-      paymentMethod
+      paymentMethod: 'safepay'
     });
     return response.data;
   },

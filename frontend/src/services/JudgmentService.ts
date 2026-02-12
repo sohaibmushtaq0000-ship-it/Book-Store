@@ -151,8 +151,8 @@ export const JudgmentService = {
   },
 
   // ================== 👤 CUSTOMER ROUTES ==================
-  purchaseJudgment: async (id: string, paymentMethod: string = 'bank'): Promise<ApiResponse<{ purchase: any }>> => {
-    const response = await api.post<ApiResponse<{ purchase: any }>>(`/judgment/${id}/purchase`, { paymentMethod });
+  purchaseJudgment: async (id: string): Promise<ApiResponse<{ purchase: any }>> => {
+    const response = await api.post<ApiResponse<{ purchase: any }>>(`/judgment/${id}/purchase`, { paymentMethod: 'safepay' });
     return response.data;
   },
 

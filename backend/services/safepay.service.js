@@ -104,8 +104,10 @@ class SafepayService {
       if (!checkoutBase) throw new Error("SAFEPAY_BASE_URL must be set in .env");
 
       const successUrl = process.env.SAFEPAY_SUCCESS_URL;
-      const cancelUrl = process.env.SAFEPAY_CANCEL_URL;
-      if (!successUrl || !cancelUrl) throw new Error("SAFEPAY_SUCCESS_URL and SAFEPAY_CANCEL_URL must be set in .env");
+      const frontendBase = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+      const cancelUrl = process.env.SAFEPAY_CANCEL_URL || (frontendBase ? `${frontendBase}/` : '');
+      if (!successUrl) throw new Error("SAFEPAY_SUCCESS_URL must be set in .env");
+      if (!cancelUrl) throw new Error("FRONTEND_URL or SAFEPAY_CANCEL_URL must be set in .env (cancel URL = frontend + /catalog)");
 
       const params = new URLSearchParams({
         environment: this.config.environment,

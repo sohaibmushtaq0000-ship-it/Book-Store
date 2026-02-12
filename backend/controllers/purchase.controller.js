@@ -8,15 +8,15 @@ const AppError = require('../utils/appError');
 // In createPurchase function, update payment method validation:
 const createPurchase = async (req, res, next) => {
   try {
-    const { bookId, judgmentId, type, format, paymentMethod } = req.body;
+    const { bookId, judgmentId, type, format } = req.body;
+    const paymentMethod = req.body.paymentMethod || 'safepay';
 
-    if (!type || (!bookId && !judgmentId) || !format || !paymentMethod) {
+    if (!type || (!bookId && !judgmentId) || !format) {
       return next(new AppError('Please provide all required fields', 400));
     }
 
-    // Update payment method validation to include safepay
-    if (!['safepay', 'jazzcash', 'easypaisa', 'bank'].includes(paymentMethod)) {
-      return next(new AppError('Invalid payment method', 400));
+    if (paymentMethod !== 'safepay') {
+      return next(new AppError('Only SafePay is accepted for payment', 400));
     }
 
     
@@ -46,50 +46,34 @@ const createPurchase = async (req, res, next) => {
       },
     });
 
-    // If payment method is safepay, create payment and return redirect URL
-    if (paymentMethod === 'safepay') {
-      const { createPaymentWithCommission } = require('../services/payment.service');
-      
-      let itemId, sellerId;
-      if (type === 'book') {
-        itemId = bookId;
-        sellerId = item.uploader._id;
-      } else {
-        itemId = judgmentId;
-        sellerId = item.uploader;
-      }
-      
-      const paymentData = await createPaymentWithCommission(
-        amount,
-        req.user.id,
-        itemId,
-        sellerId,
-        sellerType
-      );
-      
-      // Update purchase with safepay details
-      purchase.tracker = paymentData.tracker;
-      purchase.safepayTracker = paymentData.tracker;
-      await purchase.save();
-      
-      return res.status(201).json({
-        success: true,
-        message: 'Purchase initiated successfully',
-        data: { 
-          purchase,
-          nextStep: 'Proceed to payment',
-          paymentUrl: paymentData.paymentUrl,
-          tracker: paymentData.tracker
-        },
-      });
+    // SafePay: create payment and return redirect URL
+    const { createPaymentWithCommission } = require('../services/payment.service');
+    let itemId, sellerId;
+    if (type === 'book') {
+      itemId = bookId;
+      sellerId = item.uploader._id;
+    } else {
+      itemId = judgmentId;
+      sellerId = item.uploader;
     }
-
-    res.status(201).json({
+    const paymentData = await createPaymentWithCommission(
+      amount,
+      req.user.id,
+      itemId,
+      sellerId,
+      sellerType
+    );
+    purchase.tracker = paymentData.tracker;
+    purchase.safepayTracker = paymentData.tracker;
+    await purchase.save();
+    return res.status(201).json({
       success: true,
       message: 'Purchase initiated successfully',
-      data: { 
+      data: {
         purchase,
-        nextStep: 'Proceed to payment'
+        nextStep: 'Proceed to payment',
+        paymentUrl: paymentData.paymentUrl,
+        tracker: paymentData.tracker
       },
     });
   } catch (error) {

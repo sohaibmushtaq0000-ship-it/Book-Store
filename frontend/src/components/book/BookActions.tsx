@@ -25,7 +25,7 @@ interface BookActionsProps {
   purchasing: boolean;
   purchaseCheckLoading: boolean;
   reading: boolean;
-  onPurchase: (paymentMethod: 'safepay' | 'bank' | 'jazzcash' | 'easypaisa') => Promise<void>;
+  onPurchase: () => Promise<void>;
   onReadTextBook: () => void;
   onDownloadPDF: () => void;
   onRateBook: () => void;
@@ -64,15 +64,12 @@ const BookActions = ({
 
   const discountedPrice = calculateDiscountedPrice();
 
-  // Direct purchase handler - goes straight to SafePay
   const handleDirectPurchase = async () => {
     if (!isAuthenticated) {
       toast.error('Please login to purchase');
       return;
     }
-    
-    // Call onPurchase with 'safepay' to go directly to payment
-    await onPurchase('safepay');
+    await onPurchase();
   };
 
   return (
