@@ -24,7 +24,7 @@ const passport = require("passport");
 const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const path = require("path");
-
+const InitializeSuperAdmin = require("./utils/initilalization/superadminInitialize");
 // Custom routes
 const IndexRouter = require("./routes/index.routes");
 // DB connection
@@ -35,9 +35,10 @@ const { notFound, errorHandler } = require("./middleware/errorHandler");
 
 // ENV Values
 const PORT = process.env.PORT || 5000;
-const SESSION_SECRET = process.env.SESSION_SECRET || "fallbacksecret";
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const SESSION_SECRET = process.env.SESSION_SECRET;
+const FRONTEND_URL = process.env.FRONTEND_URL;
 const MONGO_URI = process.env.MONGO;
+const NODE_ENV = process.env.NODE_ENV || "development";
 
 // ===== Validate required env values =====
 if (!MONGO_URI) {
@@ -45,8 +46,26 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
+if (NODE_ENV === "production") {
+  const required = [
+    ["SESSION_SECRET", SESSION_SECRET],
+    ["JWT_SECRET", process.env.JWT_SECRET],
+    ["FRONTEND_URL", FRONTEND_URL],
+  ];
+  const missing = required.filter(([, v]) => !v || String(v).trim() === "");
+  if (missing.length) {
+    console.error("❌ ERROR: In production these env vars are required:", missing.map(([k]) => k).join(", "));
+    process.exit(1);
+  }
+  if (!FRONTEND_URL.startsWith("https://")) {
+    console.warn("⚠️  WARNING: FRONTEND_URL should use https:// in production.");
+  }
+}
+
 // Create express app
 const app = express();
+
+InitializeSuperAdmin();
 
 // ===== CONNECT DATABASE =====
 (async () => {
@@ -63,9 +82,17 @@ const app = express();
 app.use(helmet());
 
 // ===== CORS =====
+// Allow frontend origin: use FRONTEND_URL, and in development also allow common dev ports (8080, 3000, 5173)
+const allowedOrigins = [
+  FRONTEND_URL 
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: (origin, cb) => {
+      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(null, false);
+    },
     credentials: true,
   })
 );

@@ -41,73 +41,59 @@ const register = async (req, res, next) => {
     const { firstName, lastName, email, password, phone, verificationMethod = "email", role } = req.body;
 
     const existingUser = await User.findOne({ email });
-    if (existingUser)
+    if (existingUser) {
       return res.status(409).json({
         success: false,
         message: 'User already exists with this email address.',
       });
+    }
 
+    // Generate OTP
+    const verificationCode = generateOTP();
+
+    // Try sending OTP FIRST
+    await sendVerificationCode(
+      verificationMethod,
+      verificationCode,
+      `${firstName} ${lastName}`,
+      email,
+      phone
+    );
+
+    // ONLY create user if email/SMS succeeds
     const newUser = await User.create({
       firstName,
       lastName,
       email,
       password,
       phone,
-      role
+      role,
+      emailVerificationToken: crypto
+        .createHash('sha256')
+        .update(verificationCode)
+        .digest('hex'),
+      emailVerificationExpires: Date.now() + 10 * 60 * 1000,
     });
 
-    // Generate OTP
-    const verificationCode = generateOTP();
-    
-    // Store OTP in user document (hashed for security)
-    newUser.emailVerificationToken = crypto
-      .createHash('sha256')
-      .update(verificationCode)
-      .digest('hex');
-    newUser.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    await newUser.save();
-
-    // Send OTP via email or phone
-    try {
-      const result = await sendVerificationCode(
+    res.status(201).json({
+      success: true,
+      message: 'Verification code sent successfully.',
+      data: {
+        user: newUser.getProfile(),
         verificationMethod,
-        verificationCode,
-        `${firstName} ${lastName}`,
-        email,
-        phone,
-        res
-      );
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          message: result.message,
-        });
-      }
-
-      res.status(201).json({
-        success: true,
-        message: result.message,
-        data: {
-          user: newUser.getProfile(),
-          verificationMethod,
-          expiresIn: '10 minutes'
-        },
-      });
-
-    } catch (err) {
-      console.error('Verification code sending failed:', err);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send verification code. Please try again.',
-      });
-    }
+        expiresIn: '10 minutes',
+      },
+    });
 
   } catch (error) {
-    next(error);
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to send verification code. Please try again.',
+    });
   }
 };
+
 
 // VERIFY EMAIL WITH OTP
 const verifyEmail = async (req, res, next) => {
@@ -364,7 +350,7 @@ const getMe = async (req, res, next) => {
     const user = await User.findById(req.user.id);
     res.status(200).json({
       success: true,
-      data: { user: user.getProfile() },
+      data: { user },
     });
   } catch (error) {
     next(error);
